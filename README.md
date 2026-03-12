@@ -1,6 +1,6 @@
 # Argue Agent - 实时辩论助手
 
-> **在线体验**: https://argue-agent.vercel.app
+> **在线体验**: https://argue.rxcloud.group
 
 实时监听对话并自动验证对方论点，帮助你在实时沟通中掌握主动权。
 
