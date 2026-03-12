@@ -14,7 +14,6 @@ from http.server import BaseHTTPRequestHandler
 
 import httpx
 from openai import AsyncOpenAI
-from duckduckgo_search import DDGS
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +24,7 @@ GLM_BASE_URL = os.environ.get(
     "ARGUE_GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"
 )
 GLM_MODEL = os.environ.get("ARGUE_GLM_MODEL", "glm-4-flash")
+TAVILY_API_KEY = os.environ.get("ARGUE_TAVILY_API_KEY", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
@@ -116,26 +116,43 @@ async def extract_claims(text: str) -> dict:
         return {"claims": [], "main_argument": ""}
 
 
-def _sync_search(query: str) -> list[dict]:
+async def _tavily_search(client: httpx.AsyncClient, query: str) -> list[dict]:
+    """Search using Tavily API (designed for AI agents)."""
     try:
-        with DDGS() as ddgs:
-            return [
-                {
-                    "source_title": r.get("title", ""),
-                    "source_url": r.get("href", ""),
-                    "relevant_excerpt": r.get("body", ""),
-                    "supports_claim": True,
-                }
-                for r in ddgs.text(query, region="cn-zh", max_results=3)
-            ]
+        resp = await client.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": 3,
+                "include_answer": False,
+            },
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return [
+            {
+                "source_title": r.get("title", ""),
+                "source_url": r.get("url", ""),
+                "relevant_excerpt": r.get("content", ""),
+                "supports_claim": True,
+            }
+            for r in data.get("results", [])
+        ]
     except Exception:
-        logger.exception("search failed: %s", query)
+        logger.exception("tavily search failed: %s", query)
         return []
 
 
 async def search_evidence(queries: list[str]) -> list[dict]:
-    tasks = [asyncio.to_thread(_sync_search, q) for q in queries[:2]]
-    results_lists = await asyncio.gather(*tasks, return_exceptions=True)
+    if not TAVILY_API_KEY:
+        logger.warning("ARGUE_TAVILY_API_KEY not set, skipping search")
+        return []
+    async with httpx.AsyncClient() as client:
+        tasks = [_tavily_search(client, q) for q in queries[:2]]
+        results_lists = await asyncio.gather(*tasks, return_exceptions=True)
     all_ev: list[dict] = []
     seen: set[str] = set()
     for results in results_lists:

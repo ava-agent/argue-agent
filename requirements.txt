@@ -1,4 +1,2 @@
-fastapi>=0.115
 openai>=1.60
-duckduckgo-search>=7.0
 httpx

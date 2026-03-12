@@ -119,7 +119,10 @@ python -m argue_agent
 | API | 用途 | 获取方式 | 免费额度 |
 |-----|------|----------|----------|
 | 智谱 GLM | 论点提取、判定 | [智谱开放平台](https://open.bigmodel.cn/) | 新用户赠送 tokens |
+| Tavily | 证据搜索（Vercel 部署） | [Tavily](https://tavily.com/) | 1,000 次/月 |
 | Deepgram | 语音转文字 | [Deepgram 官网](https://console.deepgram.com/) | $200 额度 |
+
+> **注意**：本地部署使用 DuckDuckGo（免费无需 Key），Vercel 部署使用 Tavily Search API（DuckDuckGo 会屏蔽数据中心 IP）。
 
 ## 项目结构
 
@@ -183,6 +186,7 @@ npm i -g vercel
 # 链接项目并部署
 vercel link
 vercel env add ARGUE_GLM_API_KEY production
+vercel env add ARGUE_TAVILY_API_KEY production
 vercel env add SUPABASE_URL production
 vercel env add SUPABASE_ANON_KEY production
 vercel deploy --prod
@@ -216,6 +220,7 @@ docker run -d -p 8000:8000 \
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `ARGUE_GLM_API_KEY` | （必填） | 智谱 GLM API Key |
+| `ARGUE_TAVILY_API_KEY` | （Vercel 必填） | Tavily Search API Key |
 | `ARGUE_DEEPGRAM_API_KEY` | （可选） | Deepgram 语音识别 Key |
 | `ARGUE_GLM_MODEL` | `glm-4-flash` | GLM 模型名称 |
 | `ARGUE_HOST` | `0.0.0.0` | 监听地址 |
