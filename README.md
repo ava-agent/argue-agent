@@ -37,6 +37,48 @@
 | 数据验证 | Pydantic v2 | 类型安全的数据模型 |
 | 前端 | 原生 JS + CSS | 暗色主题，移动端适配 |
 
+## AI Agent 设计详解
+
+### Agent 管道架构
+
+![AI Agent Pipeline](docs/images/ai-agent-pipeline.png)
+
+系统核心是一个三阶段 AI Agent 管道，每个阶段由独立的 Agent 模块负责：
+
+1. **Claim Extractor Agent** — 接收用户输入文本，通过 GLM-4 LLM 以 JSON Schema 约束输出，提取结构化的可验证论点（`Claim` 对象），包含原始文本、规范化表述、论点类型和搜索查询词
+2. **Evidence Searcher Agent** — 对每个论点的搜索查询词，通过 DuckDuckGo 并发检索外部证据，返回 `SearchEvidence` 列表
+3. **Verdict Synthesizer Agent** — 将论点与证据一并送入 GLM-4 LLM，综合分析后输出 6 级判定（verified → false → unverifiable）及反驳建议
+
+### LLM 交互模式 — 结构化输出链
+
+![LLM Interaction Pattern](docs/images/llm-interaction-pattern.png)
+
+本项目的 LLM 调用采用 **Structured Output Chain** 模式：
+
+- **System Prompt 定义 JSON Schema** — 通过详细的系统提示词规定输出的 JSON 结构，配合 `response_format: {"type": "json_object"}` 强制 LLM 以 JSON 格式响应
+- **两次 LLM 调用，各司其职** — 第一次调用负责提取（Extract），第二次负责综合判定（Synthesize），每次调用都有独立的 System Prompt 和输出 Schema
+- **置信度过滤** — 提取阶段输出的 `confidence` 字段用于过滤低置信度论点（阈值 0.5），确保只对有意义的论点进行搜索验证
+- **温度控制** — 两次调用均使用 `temperature=0.1`，最大限度降低输出随机性，保证判定结果的稳定性
+
+### Agent 执行模式 — RAG + ReAct
+
+![Agent Execution Pattern](docs/images/agent-execution-pattern.png)
+
+系统融合了两种经典的 AI Agent 设计模式：
+
+**RAG（检索增强生成）**：
+- Verdict Synthesizer 不依赖 LLM 的内部知识，而是将外部搜索结果作为上下文注入 Prompt
+- 每条证据以 `[来源N] 标题 / 链接 / 内容` 格式结构化呈现，LLM 基于这些实时检索的证据进行判定
+- 这确保了判定结果基于最新的外部信息，而非训练数据中的过时知识
+
+**ReAct（推理-行动-观察）循环**：
+- **Reason**：LLM 分析输入文本，识别可验证的事实性论点
+- **Act**：系统根据提取的搜索查询词，调用 DuckDuckGo 搜索引擎
+- **Observe**：收集搜索返回的证据结果
+- **Reason**：LLM 再次推理，综合证据与论点，输出最终判定
+
+这种 Reason→Act→Observe→Reason 的循环使得 Agent 能够自主完成从"听到论点"到"给出事实核查结论"的完整推理链。
+
 ## 快速开始
 
 ### 1. 安装依赖
