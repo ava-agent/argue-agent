@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Argue Agent - 实时辩论助手</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232735;
+  --text: #e4e6eb;
+  --text2: #8b8fa3;
+  --accent: #6c5ce7;
+  --green: #00b894;
+  --red: #e17055;
+  --yellow: #fdcb6e;
+  --gray: #636e72;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--gray);
+  display: inline-block;
+  margin-right: 6px;
+}
+.status-dot.connected { background: var(--green); }
+.status-dot.recording { background: var(--red); animation: pulse 1s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-text { font-size: 12px; color: var(--text2); }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 160px;
+}
+
+/* 转录文本 */
+.transcript-item {
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  border-left: 3px solid var(--accent);
+}
+
+.transcript-item .speaker {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 2px;
+}
+
+/* 验证结果卡片 */
+.verdict-card {
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  border-left: 4px solid var(--gray);
+}
+
+.verdict-card.verified { border-left-color: var(--green); }
+.verdict-card.mostly_true { border-left-color: var(--green); }
+.verdict-card.questionable { border-left-color: var(--yellow); }
+.verdict-card.mostly_false { border-left-color: var(--red); }
+.verdict-card.false { border-left-color: var(--red); }
+
+.verdict-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.verdict-badge.verified, .verdict-badge.mostly_true { background: rgba(0,184,148,0.2); color: var(--green); }
+.verdict-badge.questionable { background: rgba(253,203,110,0.2); color: var(--yellow); }
+.verdict-badge.mostly_false, .verdict-badge.false { background: rgba(225,112,85,0.2); color: var(--red); }
+.verdict-badge.unverifiable { background: rgba(99,110,114,0.2); color: var(--gray); }
+
+.verdict-claim {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.verdict-summary {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.verdict-rebuttal {
+  font-size: 13px;
+  padding: 8px;
+  background: var(--surface2);
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
+.verdict-rebuttal::before {
+  content: "反驳建议: ";
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.evidence-list {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.evidence-item {
+  padding: 4px 0;
+  color: var(--text2);
+}
+
+.evidence-item a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.checking-item {
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text2);
+  border-left: 3px solid var(--yellow);
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 底部控制栏 */
+.controls {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--surface2);
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.text-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.text-input-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--surface2);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.text-input-row input:focus {
+  border-color: var(--accent);
+}
+
+.text-input-row button {
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-mic {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-mic.recording {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(225,112,85,0.3);
+}
+
+.btn-mic:active { transform: scale(0.95); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Argue Agent</h1>
+  <div>
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-text" id="statusText">连接中...</span>
+  </div>
+</div>
+
+<div class="content" id="content"></div>
+
+<div class="controls">
+  <div class="text-input-row">
+    <input type="text" id="textInput" placeholder="手动输入对方的话..." />
+    <button onclick="sendText()">发送</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn-mic" id="btnMic" onclick="toggleRecording()">🎤</button>
+  </div>
+</div>
+
+<script>
+const content = document.getElementById('content');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const btnMic = document.getElementById('btnMic');
+const textInput = document.getElementById('textInput');
+
+let ws = null;
+let recording = false;
+let audioContext = null;
+let mediaStream = null;
+let workletNode = null;
+
+// WebSocket 连接
+function connect() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    statusDot.classList.add('connected');
+    statusText.textContent = '已连接';
+  };
+
+  ws.onclose = () => {
+    statusDot.classList.remove('connected', 'recording');
+    statusText.textContent = '已断开，重连中...';
+    setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => {
+    statusText.textContent = '连接出错';
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    handleMessage(msg);
+  };
+}
+
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'status':
+      statusText.textContent = msg.message;
+      break;
+
+    case 'transcript':
+      addTranscript(msg.text, msg.speaker);
+      break;
+
+    case 'extraction':
+      addInfo(`检测到 ${msg.claim_count} 个可验证论点: ${msg.main_argument}`);
+      break;
+
+    case 'checking':
+      addChecking(msg.claim);
+      break;
+
+    case 'verdict':
+      // 移除对应的 checking 项
+      removeChecking(msg.claim);
+      addVerdict(msg);
+      break;
+  }
+
+  // 自动滚动到底部
+  content.scrollTop = content.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function addTranscript(text, speaker) {
+  const div = document.createElement('div');
+  div.className = 'transcript-item';
+  div.innerHTML = `<div class="speaker">${escapeHtml(speaker)}</div>${escapeHtml(text)}`;
+  content.appendChild(div);
+}
+
+function addInfo(text) {
+  const div = document.createElement('div');
+  div.className = 'checking-item';
+  div.textContent = text;
+  content.appendChild(div);
+}
+
+function addChecking(claim) {
+  const div = document.createElement('div');
+  div.className = 'checking-item';
+  div.dataset.claim = claim;
+  div.textContent = `🔍 验证中: ${claim}`;
+  content.appendChild(div);
+}
+
+function removeChecking(claim) {
+  const items = content.querySelectorAll('.checking-item');
+  for (const item of items) {
+    if (item.dataset.claim === claim) {
+      item.remove();
+      break;
+    }
+  }
+}
+
+function addVerdict(msg) {
+  const div = document.createElement('div');
+  div.className = `verdict-card ${msg.verdict}`;
+
+  const verdictLabels = {
+    verified: '已验证',
+    mostly_true: '基本正确',
+    questionable: '存疑',
+    mostly_false: '大部分不准确',
+    false: '错误',
+    unverifiable: '无法验证'
+  };
+
+  let html = `
+    <span class="verdict-badge ${escapeHtml(msg.verdict)}">${escapeHtml(verdictLabels[msg.verdict] || msg.verdict)} ${Math.round(msg.confidence * 100)}%</span>
+    <div class="verdict-claim">${escapeHtml(msg.claim)}</div>
+    <div class="verdict-summary">${escapeHtml(msg.summary)}</div>
+  `;
+
+  if (msg.rebuttal) {
+    html += `<div class="verdict-rebuttal">${escapeHtml(msg.rebuttal)}</div>`;
+  }
+
+  if (msg.evidence && msg.evidence.length > 0) {
+    html += '<div class="evidence-list">';
+    for (const e of msg.evidence.slice(0, 3)) {
+      const icon = e.supports ? '✅' : '❌';
+      html += `<div class="evidence-item">${icon} <a href="${escapeHtml(e.url)}" target="_blank">${escapeHtml(e.title)}</a></div>`;
+    }
+    html += '</div>';
+  }
+
+  div.innerHTML = html;
+  content.appendChild(div);
+}
+
+// 文本输入
+function sendText() {
+  const text = textInput.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  ws.send(JSON.stringify({ type: 'text_input', text }));
+  addTranscript(text, 'opponent (手动输入)');
+  textInput.value = '';
+  content.scrollTop = content.scrollHeight;
+}
+
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendText();
+});
+
+// 录音控制
+async function toggleRecording() {
+  if (recording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    statusText.textContent = '未连接，无法录音';
+    return;
+  }
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+      }
+    });
+
+    audioContext = new AudioContext({ sampleRate: 16000 });
+    const source = audioContext.createMediaStreamSource(mediaStream);
+
+    // 使用 ScriptProcessor (兼容性更好)
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+      if (!recording || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const float32 = e.inputBuffer.getChannelData(0);
+      // 发送 Float32 PCM 数据
+      ws.send(float32.buffer);
+    };
+
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+
+    recording = true;
+    btnMic.classList.add('recording');
+    statusDot.classList.add('recording');
+    statusText.textContent = '录音中...';
+
+  } catch (err) {
+    statusText.textContent = '麦克风权限被拒绝';
+    console.error('录音失败:', err);
+  }
+}
+
+function stopRecording() {
+  recording = false;
+  btnMic.classList.remove('recording');
+  statusDot.classList.remove('recording');
+  statusText.textContent = '已连接';
+
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+}
+
+// 启动
+connect();
+</script>
+
+</body>
+</html>
