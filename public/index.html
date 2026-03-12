@@ -147,6 +147,10 @@ header {
   border-color: var(--violet);
   box-shadow: 0 0 0 1px var(--violet-glow);
 }
+.input-box.listening {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.25);
+}
 .input-box textarea {
   width: 100%;
   background: none;
@@ -181,6 +185,64 @@ header {
   white-space: nowrap;
 }
 .example-chip:hover { border-color: var(--violet); color: var(--text); }
+
+.btn-group { display: flex; gap: 8px; align-items: center; }
+
+.btn-mic {
+  width: 42px; height: 42px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.btn-mic:hover { border-color: var(--violet); color: var(--text); }
+.btn-mic.listening {
+  background: var(--rose-bg);
+  border-color: var(--rose);
+  color: var(--rose);
+  animation: micPulse 1.5s ease-in-out infinite;
+}
+.btn-mic.unsupported { display: none; }
+.btn-mic svg { width: 18px; height: 18px; }
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+
+/* Listening banner */
+.listening-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-top: 12px;
+  background: var(--rose-bg);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 2px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--rose);
+  letter-spacing: 0.05em;
+}
+.listening-banner.active { display: flex; }
+.listening-dot {
+  width: 6px; height: 6px;
+  background: var(--rose);
+  border-radius: 50%;
+  animation: dotBlink 1s ease-in-out infinite;
+}
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .btn-verify {
   font-family: 'Space Mono', monospace;
   font-size: 13px;
@@ -239,6 +301,42 @@ header {
   border-left: 2px solid var(--violet);
 }
 
+/* ── Pipeline Progress ── */
+.pipeline-progress {
+  display: none;
+  gap: 0;
+  margin-bottom: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.pipeline-progress.active { display: flex; }
+.pipeline-step {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  text-align: center;
+  position: relative;
+  transition: all 0.3s;
+}
+.pipeline-step:first-child { border-radius: 2px 0 0 2px; }
+.pipeline-step:last-child { border-radius: 0 2px 2px 0; }
+.pipeline-step + .pipeline-step { border-left: none; }
+.pipeline-step.active {
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-color: var(--violet);
+}
+.pipeline-step.active + .pipeline-step { border-left-color: var(--violet); }
+.pipeline-step.done {
+  color: var(--emerald);
+  background: var(--emerald-bg);
+  border-color: rgba(61,214,140,0.2);
+}
+.pipeline-step.done + .pipeline-step { border-left-color: rgba(61,214,140,0.2); }
+
 /* ── Verdict Card ── */
 .verdict-card {
   background: var(--card);
@@ -258,6 +356,24 @@ header {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Skeleton loading state */
+.verdict-card.skeleton { border-left-color: var(--violet); }
+.verdict-card.skeleton .skeleton-bar {
+  height: 12px;
+  background: linear-gradient(90deg, var(--elevated) 25%, var(--border) 50%, var(--elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+.verdict-card.skeleton .skeleton-bar:last-child { margin-bottom: 0; }
+.verdict-card.skeleton .skeleton-bar.short { width: 60%; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .verdict-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .verdict-badge {
   font-family: 'Space Mono', monospace;
@@ -276,6 +392,9 @@ header {
 }
 .verdict-badge.unverifiable {
   background: var(--slate-bg); color: var(--slate); border: 1px solid rgba(100,116,139,0.2);
+}
+.verdict-badge.pending {
+  background: var(--violet-soft); color: var(--violet); border: 1px solid rgba(139,108,239,0.2);
 }
 .verdict-conf { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-3); }
 .verdict-claim { font-size: 15px; font-weight: 500; margin-bottom: 10px; line-height: 1.5; }
@@ -315,12 +434,6 @@ header {
   50% { opacity: 1; transform: scaleX(1); }
   100% { opacity: 0.3; transform: scaleX(0.3); }
 }
-.loading-text {
-  text-align: center; font-family: 'Space Mono', monospace;
-  font-size: 12px; color: var(--text-3); letter-spacing: 0.05em;
-  display: none; margin-bottom: 20px;
-}
-.loading-text.active { display: block; }
 
 /* ── Recent Section ── */
 .recent-section { padding-bottom: 60px; }
@@ -364,8 +477,10 @@ footer a:hover { color: var(--violet); }
   .hero h1 { font-size: 2rem; }
   .input-actions { flex-direction: column; align-items: stretch; }
   .examples { justify-content: center; }
-  .btn-verify { width: 100%; text-align: center; }
+  .btn-group { justify-content: center; }
+  .btn-verify { flex: 1; text-align: center; }
   .recent-grid { grid-template-columns: 1fr; }
+  .pipeline-step { font-size: 10px; padding: 8px 6px; }
 }
 </style>
 </head>
@@ -382,32 +497,49 @@ footer a:hover { color: var(--violet); }
 
   <section class="hero">
     <h1 class="fade-in delay-1">The Arbiter</h1>
-    <p class="fade-in delay-2">输入对方的论点，AI 即刻提取事实性声明，搜索证据，给出判定与反驳建议</p>
+    <p class="fade-in delay-2">输入对方的论点或开启语音监听，AI 即刻提取事实性声明，搜索证据，给出判定与反驳建议</p>
   </section>
 
   <section class="input-section fade-in delay-3">
-    <div class="input-box">
-      <textarea id="input" rows="3" placeholder="输入对方说的话，例如：中国的GDP在2024年超过了美国..."></textarea>
+    <div class="input-box" id="inputBox">
+      <textarea id="input" rows="3" placeholder="输入对方说的话，或点击麦克风开启语音监听..."></textarea>
       <div class="input-actions">
         <div class="examples">
           <span class="example-chip" data-text="特斯拉2023年全球销量超过了500万辆">特斯拉销量</span>
           <span class="example-chip" data-text="研究表明每天必须喝8杯水才能保持健康">8杯水理论</span>
           <span class="example-chip" data-text="世界上最深的湖泊是贝加尔湖，最深处超过1600米">贝加尔湖</span>
         </div>
-        <button class="btn-verify" id="btnVerify">
-          <span class="label">VERIFY</span>
-          <span class="spinner"></span>
-        </button>
+        <div class="btn-group">
+          <button class="btn-mic" id="btnMic" title="语音监听">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+          </button>
+          <button class="btn-verify" id="btnVerify">
+            <span class="label">VERIFY</span>
+            <span class="spinner"></span>
+          </button>
+        </div>
+      </div>
+      <div class="listening-banner" id="listeningBanner">
+        <span class="listening-dot"></span>
+        <span>语音监听中 — 检测到停顿将自动提交分析</span>
       </div>
     </div>
   </section>
 
   <section class="results-section">
     <div class="section-title">Analysis Results</div>
+    <div class="pipeline-progress" id="pipelineProgress">
+      <div class="pipeline-step" id="stepExtract" data-label="提取论点">提取论点</div>
+      <div class="pipeline-step" id="stepSearch" data-label="搜索证据">搜索证据</div>
+      <div class="pipeline-step" id="stepVerdict" data-label="综合判定">综合判定</div>
+    </div>
     <div class="scan-line" id="scanLine"></div>
-    <div class="loading-text" id="loadingText">extracting claims · searching evidence · synthesizing verdict</div>
     <div id="results">
-      <div class="results-empty">输入文本后点击 VERIFY 开始验证</div>
+      <div class="results-empty">输入文本或开启语音监听开始验证</div>
     </div>
   </section>
 
@@ -417,13 +549,13 @@ footer a:hover { color: var(--violet); }
   </section>
 
   <footer>
-    <p>Powered by <a href="https://open.bigmodel.cn/" target="_blank" rel="noopener">GLM-4</a> · <a href="https://duckduckgo.com/" target="_blank" rel="noopener">DuckDuckGo</a> · Built with <a href="https://github.com/ava-agent/argue-agent" target="_blank" rel="noopener">Argue Agent</a></p>
+    <p>Powered by <a href="https://open.bigmodel.cn/" target="_blank" rel="noopener">GLM-4</a> · <a href="https://tavily.com/" target="_blank" rel="noopener">Tavily</a> · Built with <a href="https://github.com/ava-agent/argue-agent" target="_blank" rel="noopener">Argue Agent</a></p>
   </footer>
 </div>
 
 <script>
 const SUPABASE_URL = 'https://lvazmokpqrywaysgxspg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2YXptb2twcXJ5d2F5c2d4c3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyOTUzNDYsImV4cCI6MjA4NDg3MTM0Nn0.MyWZG8T0kQn0ZYuwN9iN3Vz-6C_cR6YrceZmmOqQcT8';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2YXptb2twcXJ5d2F5c2d4c3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyOTUzNDYsImV4cCI6MjA4NDg3MTM0Nn0.MyWZG0kQn0ZYuwN9iN3Vz-6C_cR6YrceZmmOqQcT8';
 
 const VERDICT_LABELS = {
   verified: '已验证', mostly_true: '基本正确', questionable: '存疑',
@@ -437,11 +569,17 @@ const VERDICT_CSS_COLORS = {
 
 const $ = id => document.getElementById(id);
 const inputEl = $('input');
+const inputBox = $('inputBox');
 const btnVerify = $('btnVerify');
+const btnMic = $('btnMic');
+const listeningBanner = $('listeningBanner');
 const resultsEl = $('results');
 const scanLine = $('scanLine');
-const loadingText = $('loadingText');
+const pipelineProgress = $('pipelineProgress');
 const recentGrid = $('recentGrid');
+
+let isAnalyzing = false;
+let analysisQueue = [];
 
 // ── Helpers ──
 
@@ -474,6 +612,17 @@ function timeAgo(ts) {
   return Math.floor(h / 24) + ' 天前';
 }
 
+function setPipelineStep(step) {
+  const steps = ['stepExtract', 'stepSearch', 'stepVerdict'];
+  const idx = steps.indexOf(step);
+  steps.forEach((s, i) => {
+    const el = $(s);
+    el.classList.remove('active', 'done');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  });
+}
+
 // ── Example chips ──
 document.querySelectorAll('.example-chip').forEach(chip => {
   chip.addEventListener('click', () => { inputEl.value = chip.dataset.text; inputEl.focus(); });
@@ -485,104 +634,272 @@ inputEl.addEventListener('keydown', e => {
 });
 btnVerify.addEventListener('click', doAnalyze);
 
-// ── Analyze ──
+// ── Web Speech API ──
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
+let finalTranscript = '';
+let interimTranscript = '';
+
+if (!SpeechRecognition) {
+  btnMic.classList.add('unsupported');
+} else {
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'zh-CN';
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (event) => {
+    interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+        // Auto-submit on sentence boundary
+        inputEl.value = finalTranscript;
+        queueAnalysis(finalTranscript.trim());
+        finalTranscript = '';
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+    // Show interim text in gray
+    inputEl.value = finalTranscript + interimTranscript;
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') return; // Ignore no-speech, keep listening
+    if (event.error === 'aborted') return;
+    stopListening();
+  };
+
+  recognition.onend = () => {
+    // Auto-restart if still in listening mode
+    if (isListening) {
+      try { recognition.start(); } catch {}
+    }
+  };
+}
+
+function startListening() {
+  if (!recognition) return;
+  isListening = true;
+  finalTranscript = '';
+  interimTranscript = '';
+  btnMic.classList.add('listening');
+  inputBox.classList.add('listening');
+  listeningBanner.classList.add('active');
+  inputEl.placeholder = '正在监听语音...';
+  inputEl.value = '';
+  try { recognition.start(); } catch {}
+}
+
+function stopListening() {
+  if (!recognition) return;
+  isListening = false;
+  btnMic.classList.remove('listening');
+  inputBox.classList.remove('listening');
+  listeningBanner.classList.remove('active');
+  inputEl.placeholder = '输入对方说的话，或点击麦克风开启语音监听...';
+  try { recognition.stop(); } catch {}
+}
+
+btnMic.addEventListener('click', () => {
+  if (isListening) stopListening();
+  else startListening();
+});
+
+// ── Analysis Queue (for voice mode) ──
+
+function queueAnalysis(text) {
+  if (!text) return;
+  if (isAnalyzing) {
+    analysisQueue.push(text);
+    return;
+  }
+  doAnalyzeProgressive(text);
+}
+
+async function processQueue() {
+  if (analysisQueue.length === 0) return;
+  const next = analysisQueue.shift();
+  await doAnalyzeProgressive(next);
+}
+
+// ── Progressive Analyze (extract → verdict per claim) ──
+
 async function doAnalyze() {
   const text = inputEl.value.trim();
-  if (!text || btnVerify.disabled) return;
+  if (!text || isAnalyzing) return;
+  await doAnalyzeProgressive(text);
+}
+
+async function doAnalyzeProgressive(text) {
+  if (isAnalyzing) { analysisQueue.push(text); return; }
+  isAnalyzing = true;
 
   btnVerify.classList.add('loading');
   btnVerify.disabled = true;
   scanLine.classList.add('active');
-  loadingText.classList.add('active');
+  pipelineProgress.classList.add('active');
   resultsEl.textContent = '';
 
   try {
-    const resp = await fetch('/api/analyze', {
+    // Step 1: Extract claims
+    setPipelineStep('stepExtract');
+    const extractResp = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, step: 'extract' }),
     });
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: '请求失败' }));
+    if (!extractResp.ok) {
+      const err = await extractResp.json().catch(() => ({ error: '请求失败' }));
       resultsEl.appendChild(el('div', { className: 'no-claims', textContent: err.error || '请求失败' }));
       return;
     }
 
-    const data = await resp.json();
-    renderResults(data);
+    const extraction = await extractResp.json();
+
+    // Show main argument immediately
+    if (extraction.main_argument) {
+      resultsEl.appendChild(el('div', { className: 'main-argument', textContent: extraction.main_argument }));
+    }
+
+    if (!extraction.claims || extraction.claims.length === 0) {
+      resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '未检测到可验证的事实性论点' }));
+      return;
+    }
+
+    // Show skeleton cards for each claim
+    const cardEls = [];
+    extraction.claims.forEach((c, i) => {
+      const card = renderSkeletonCard(c, i);
+      resultsEl.appendChild(card);
+      cardEls.push({ el: card, claim: c, index: i });
+    });
+
+    // Step 2: Search + Verdict for each claim (concurrent)
+    setPipelineStep('stepSearch');
+
+    const verdictPromises = cardEls.map(async ({ el: cardEl, claim, index }) => {
+      try {
+        const vResp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ step: 'verdict', claim }),
+        });
+        if (!vResp.ok) return;
+        const verdict = await vResp.json();
+        // Replace skeleton with real card
+        const realCard = renderVerdictCard(verdict, index);
+        cardEl.replaceWith(realCard);
+        return verdict;
+      } catch {
+        // Leave skeleton in place on error
+      }
+    });
+
+    setPipelineStep('stepVerdict');
+    const verdicts = await Promise.all(verdictPromises);
+
+    // Save to Supabase
+    const processedClaims = verdicts.filter(Boolean);
+    saveToSupabase(text, extraction.main_argument || '', processedClaims);
     loadRecent();
+
   } catch {
     resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '网络错误，请检查连接后重试' }));
   } finally {
     btnVerify.classList.remove('loading');
     btnVerify.disabled = false;
     scanLine.classList.remove('active');
-    loadingText.classList.remove('active');
+    pipelineProgress.classList.remove('active');
+    isAnalyzing = false;
+    processQueue();
   }
 }
 
-// ── Render Results (safe DOM construction) ──
-function renderResults(data) {
-  resultsEl.textContent = '';
-
-  if (data.main_argument) {
-    resultsEl.appendChild(el('div', { className: 'main-argument', textContent: data.main_argument }));
-  }
-
-  if (!data.claims || data.claims.length === 0) {
-    resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '未检测到可验证的事实性论点' }));
-    return;
-  }
-
-  data.claims.forEach((c, i) => {
-    const v = c.verdict || 'unverifiable';
-    const conf = Math.round((c.confidence || 0) * 100);
-
-    const card = el('div', {
-      className: 'verdict-card ' + v,
-      style: { animationDelay: (i * 0.12) + 's' }
-    });
-
-    // Header: badge + confidence
-    const header = el('div', { className: 'verdict-header' }, [
-      el('span', { className: 'verdict-badge ' + v, textContent: (VERDICT_LABELS[v] || v) }),
-      el('span', { className: 'verdict-conf', textContent: conf + '%' }),
-    ]);
-    card.appendChild(header);
-
-    // Claim text
-    card.appendChild(el('div', { className: 'verdict-claim', textContent: c.normalized_claim || '' }));
-
-    // Summary
-    card.appendChild(el('div', { className: 'verdict-summary', textContent: c.summary || '' }));
-
-    // Rebuttal
-    if (c.suggested_rebuttal) {
-      const rebuttal = el('div', { className: 'verdict-rebuttal' }, [
-        el('span', { className: 'verdict-rebuttal-label', textContent: 'Rebuttal' }),
-        document.createTextNode(c.suggested_rebuttal),
-      ]);
-      card.appendChild(rebuttal);
-    }
-
-    // Evidence
-    if (c.evidence && c.evidence.length > 0) {
-      const list = el('div', { className: 'evidence-list' });
-      c.evidence.slice(0, 4).forEach(e => {
-        const colorVar = e.supports_claim ? '--emerald' : '--rose';
-        const icon = e.supports_claim ? '\u25CF' : '\u25CB';
-        const item = el('div', { className: 'evidence-item' }, [
-          el('span', { style: { color: 'var(' + colorVar + ')' }, textContent: icon }),
-          el('a', { href: e.source_url, target: '_blank', rel: 'noopener', textContent: e.source_title }),
-        ]);
-        list.appendChild(item);
-      });
-      card.appendChild(list);
-    }
-
-    resultsEl.appendChild(card);
+// ── Render Skeleton Card (claim extracted, verdict pending) ──
+function renderSkeletonCard(claim, index) {
+  const card = el('div', {
+    className: 'verdict-card skeleton',
+    style: { animationDelay: (index * 0.12) + 's' }
   });
+
+  const header = el('div', { className: 'verdict-header' }, [
+    el('span', { className: 'verdict-badge pending', textContent: '验证中...' }),
+  ]);
+  card.appendChild(header);
+  card.appendChild(el('div', { className: 'verdict-claim', textContent: claim.normalized_claim || claim.original_text || '' }));
+  card.appendChild(el('div', { className: 'skeleton-bar' }));
+  card.appendChild(el('div', { className: 'skeleton-bar short' }));
+
+  return card;
+}
+
+// ── Render Full Verdict Card ──
+function renderVerdictCard(c, index) {
+  const v = c.verdict || 'unverifiable';
+  const conf = Math.round((c.confidence || 0) * 100);
+
+  const card = el('div', {
+    className: 'verdict-card ' + v,
+    style: { animationDelay: (index * 0.12) + 's' }
+  });
+
+  const header = el('div', { className: 'verdict-header' }, [
+    el('span', { className: 'verdict-badge ' + v, textContent: (VERDICT_LABELS[v] || v) }),
+    el('span', { className: 'verdict-conf', textContent: conf + '%' }),
+  ]);
+  card.appendChild(header);
+  card.appendChild(el('div', { className: 'verdict-claim', textContent: c.normalized_claim || '' }));
+  card.appendChild(el('div', { className: 'verdict-summary', textContent: c.summary || '' }));
+
+  if (c.suggested_rebuttal) {
+    const rebuttal = el('div', { className: 'verdict-rebuttal' }, [
+      el('span', { className: 'verdict-rebuttal-label', textContent: 'Rebuttal' }),
+      document.createTextNode(c.suggested_rebuttal),
+    ]);
+    card.appendChild(rebuttal);
+  }
+
+  if (c.evidence && c.evidence.length > 0) {
+    const list = el('div', { className: 'evidence-list' });
+    c.evidence.slice(0, 4).forEach(e => {
+      const colorVar = e.supports_claim ? '--emerald' : '--rose';
+      const icon = e.supports_claim ? '\u25CF' : '\u25CB';
+      const item = el('div', { className: 'evidence-item' }, [
+        el('span', { style: { color: 'var(' + colorVar + ')' }, textContent: icon }),
+        el('a', { href: e.source_url, target: '_blank', rel: 'noopener', textContent: e.source_title }),
+      ]);
+      list.appendChild(item);
+    });
+    card.appendChild(list);
+  }
+
+  return card;
+}
+
+// ── Save to Supabase (from frontend) ──
+async function saveToSupabase(inputText, mainArgument, claims) {
+  try {
+    await fetch(
+      SUPABASE_URL + '/rest/v1/argue_analyses',
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ input_text: inputText, main_argument: mainArgument, claims }),
+      }
+    );
+  } catch {}
 }
 
 // ── Load Recent from Supabase ──
@@ -606,7 +923,7 @@ async function loadRecent() {
 
     rows.forEach(r => {
       const claims = r.claims || [];
-      const text = r.input_text.length > 60 ? r.input_text.slice(0, 60) + '…' : r.input_text;
+      const text = r.input_text.length > 60 ? r.input_text.slice(0, 60) + '\u2026' : r.input_text;
 
       const badges = el('div', { className: 'recent-badges' });
       claims.slice(0, 4).forEach(c => {
@@ -622,7 +939,7 @@ async function loadRecent() {
         el('div', { className: 'recent-text', textContent: text }),
         el('div', { className: 'recent-meta' }, [
           badges,
-          el('span', { textContent: claims.length + ' claims · ' + timeAgo(r.created_at) }),
+          el('span', { textContent: claims.length + ' claims \u00b7 ' + timeAgo(r.created_at) }),
         ]),
       ]);
 

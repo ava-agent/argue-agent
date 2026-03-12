@@ -238,7 +238,25 @@ async def process_claim(claim: dict) -> dict:
     }
 
 
+async def run_extract(text: str) -> dict:
+    """Step 1: Extract claims only (fast ~1-2s)."""
+    if not GLM_API_KEY:
+        return {"error": "GLM API Key 未配置"}
+    extraction = await extract_claims(text)
+    claims = extraction.get("claims", [])
+    claims = [c for c in claims if c.get("confidence", 0) >= 0.5][:3]
+    return {"input_text": text, "main_argument": extraction.get("main_argument", ""), "claims": claims}
+
+
+async def run_verdict(claim_data: dict) -> dict:
+    """Step 2: Search + synthesize verdict for one claim (~2-4s)."""
+    if not GLM_API_KEY:
+        return {"error": "GLM API Key 未配置"}
+    return await process_claim(claim_data)
+
+
 async def run_pipeline(text: str) -> dict:
+    """Full pipeline (backward compatible)."""
     if not GLM_API_KEY:
         return {"error": "GLM API Key 未配置"}
 
@@ -268,13 +286,32 @@ class handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "Invalid JSON"})
             return
 
+        step = body.get("step", "full")
+
+        if step == "verdict":
+            claim_data = body.get("claim")
+            if not claim_data:
+                self._json(400, {"error": "缺少 claim 数据"})
+                return
+            try:
+                result = asyncio.run(run_verdict(claim_data))
+            except Exception as e:
+                logger.exception("verdict error")
+                self._json(500, {"error": str(e)})
+                return
+            self._json(200, result)
+            return
+
         text = body.get("text", "").strip()
         if not text:
             self._json(400, {"error": "请输入文本"})
             return
 
         try:
-            result = asyncio.run(run_pipeline(text))
+            if step == "extract":
+                result = asyncio.run(run_extract(text))
+            else:
+                result = asyncio.run(run_pipeline(text))
         except Exception as e:
             logger.exception("pipeline error")
             self._json(500, {"error": str(e)})
