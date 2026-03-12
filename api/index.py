@@ -201,9 +201,9 @@ async def synthesize_verdict(claim: dict, evidence: list[dict]) -> dict:
             "suggested_rebuttal": data.get("suggested_rebuttal", ""),
             "evidence": analyzed[:5],
         }
-    except Exception as e:
+    except Exception:
         logger.exception("synthesize_verdict failed")
-        return {"verdict": "unverifiable", "confidence": 0.0, "summary": f"判定过程出错: {e}", "suggested_rebuttal": "", "evidence": list(evidence)[:3]}
+        return {"verdict": "unverifiable", "confidence": 0.0, "summary": "判定过程出错", "suggested_rebuttal": "", "evidence": []}
 
 
 async def save_to_supabase(input_text: str, main_argument: str, claims: list[dict]) -> None:
