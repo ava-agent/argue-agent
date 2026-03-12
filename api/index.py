@@ -136,7 +136,7 @@ async def _tavily_search(client: httpx.AsyncClient, query: str) -> list[dict]:
             {
                 "source_title": r.get("title", ""),
                 "source_url": r.get("url", ""),
-                "relevant_excerpt": r.get("content", ""),
+                "relevant_excerpt": r.get("content", "")[:500],
                 "supports_claim": True,
             }
             for r in data.get("results", [])
@@ -201,9 +201,9 @@ async def synthesize_verdict(claim: dict, evidence: list[dict]) -> dict:
             "suggested_rebuttal": data.get("suggested_rebuttal", ""),
             "evidence": analyzed[:5],
         }
-    except Exception:
+    except Exception as e:
         logger.exception("synthesize_verdict failed")
-        return {"verdict": "unverifiable", "confidence": 0.0, "summary": "判定过程出错", "suggested_rebuttal": "", "evidence": []}
+        return {"verdict": "unverifiable", "confidence": 0.0, "summary": f"判定过程出错: {e}", "suggested_rebuttal": "", "evidence": list(evidence)[:3]}
 
 
 async def save_to_supabase(input_text: str, main_argument: str, claims: list[dict]) -> None:
