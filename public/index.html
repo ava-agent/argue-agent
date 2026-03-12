@@ -555,7 +555,7 @@ footer a:hover { color: var(--violet); }
 
 <script>
 const SUPABASE_URL = 'https://lvazmokpqrywaysgxspg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2YXptb2twcXJ5d2F5c2d4c3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyOTUzNDYsImV4cCI6MjA4NDg3MTM0Nn0.MyWZG0kQn0ZYuwN9iN3Vz-6C_cR6YrceZmmOqQcT8';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2YXptb2twcXJ5d2F5c2d4c3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyOTUzNDYsImV4cCI6MjA4NDg3MTM0Nn0.MyWZG8T0kQn0ZYuwN9iN3Vz-6C_cR6YrceZmmOqQcT8';
 
 const VERDICT_LABELS = {
   verified: '已验证', mostly_true: '基本正确', questionable: '存疑',
@@ -580,6 +580,12 @@ const recentGrid = $('recentGrid');
 
 let isAnalyzing = false;
 let analysisQueue = [];
+
+// ── Conversation Context (voice mode) ──
+let conversationBuffer = '';     // Accumulated speech text
+let analyzedClaimKeys = new Set(); // Track already-analyzed claims by normalized text
+let isVoiceMode = false;         // Whether we're in continuous voice mode
+const CONTEXT_WINDOW = 800;      // Max chars to send for context
 
 // ── Helpers ──
 
@@ -639,7 +645,7 @@ btnVerify.addEventListener('click', doAnalyze);
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 let isListening = false;
-let finalTranscript = '';
+let pendingTranscript = '';
 let interimTranscript = '';
 
 if (!SpeechRecognition) {
@@ -656,27 +662,33 @@ if (!SpeechRecognition) {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        finalTranscript += transcript;
-        // Auto-submit on sentence boundary
-        inputEl.value = finalTranscript;
-        queueAnalysis(finalTranscript.trim());
-        finalTranscript = '';
+        // Accumulate into conversation buffer
+        conversationBuffer += transcript;
+        pendingTranscript = '';
+        // Show full conversation in textarea
+        inputEl.value = conversationBuffer;
+        inputEl.scrollTop = inputEl.scrollHeight;
+        // Submit accumulated context for analysis
+        const contextText = conversationBuffer.length > CONTEXT_WINDOW
+          ? conversationBuffer.slice(-CONTEXT_WINDOW)
+          : conversationBuffer;
+        queueAnalysis(contextText);
       } else {
         interimTranscript += transcript;
       }
     }
-    // Show interim text in gray
-    inputEl.value = finalTranscript + interimTranscript;
+    // Show conversation + interim text
+    inputEl.value = conversationBuffer + interimTranscript;
+    inputEl.scrollTop = inputEl.scrollHeight;
   };
 
   recognition.onerror = (event) => {
-    if (event.error === 'no-speech') return; // Ignore no-speech, keep listening
+    if (event.error === 'no-speech') return;
     if (event.error === 'aborted') return;
     stopListening();
   };
 
   recognition.onend = () => {
-    // Auto-restart if still in listening mode
     if (isListening) {
       try { recognition.start(); } catch {}
     }
@@ -686,19 +698,24 @@ if (!SpeechRecognition) {
 function startListening() {
   if (!recognition) return;
   isListening = true;
-  finalTranscript = '';
+  isVoiceMode = true;
+  pendingTranscript = '';
   interimTranscript = '';
+  conversationBuffer = '';
+  analyzedClaimKeys.clear();
   btnMic.classList.add('listening');
   inputBox.classList.add('listening');
   listeningBanner.classList.add('active');
   inputEl.placeholder = '正在监听语音...';
   inputEl.value = '';
+  resultsEl.textContent = '';
   try { recognition.start(); } catch {}
 }
 
 function stopListening() {
   if (!recognition) return;
   isListening = false;
+  isVoiceMode = false;
   btnMic.classList.remove('listening');
   inputBox.classList.remove('listening');
   listeningBanner.classList.remove('active');
@@ -716,7 +733,12 @@ btnMic.addEventListener('click', () => {
 function queueAnalysis(text) {
   if (!text) return;
   if (isAnalyzing) {
-    analysisQueue.push(text);
+    // In voice mode, replace queued text with latest (always use most recent context)
+    if (isVoiceMode) {
+      analysisQueue = [text];
+    } else {
+      analysisQueue.push(text);
+    }
     return;
   }
   doAnalyzeProgressive(text);
@@ -733,6 +755,9 @@ async function processQueue() {
 async function doAnalyze() {
   const text = inputEl.value.trim();
   if (!text || isAnalyzing) return;
+  // Manual mode: reset dedup tracking
+  isVoiceMode = false;
+  analyzedClaimKeys.clear();
   await doAnalyzeProgressive(text);
 }
 
@@ -744,10 +769,14 @@ async function doAnalyzeProgressive(text) {
   btnVerify.disabled = true;
   scanLine.classList.add('active');
   pipelineProgress.classList.add('active');
-  resultsEl.textContent = '';
+
+  // In manual mode, clear results; in voice mode, append
+  if (!isVoiceMode) {
+    resultsEl.textContent = '';
+  }
 
   try {
-    // Step 1: Extract claims
+    // Step 1: Extract claims from context
     setPipelineStep('stepExtract');
     const extractResp = await fetch('/api/analyze', {
       method: 'POST',
@@ -757,31 +786,69 @@ async function doAnalyzeProgressive(text) {
 
     if (!extractResp.ok) {
       const err = await extractResp.json().catch(() => ({ error: '请求失败' }));
-      resultsEl.appendChild(el('div', { className: 'no-claims', textContent: err.error || '请求失败' }));
+      if (!isVoiceMode) {
+        resultsEl.appendChild(el('div', { className: 'no-claims', textContent: err.error || '请求失败' }));
+      }
       return;
     }
 
     const extraction = await extractResp.json();
+    const allClaims = extraction.claims || [];
 
-    // Show main argument immediately
-    if (extraction.main_argument) {
-      resultsEl.appendChild(el('div', { className: 'main-argument', textContent: extraction.main_argument }));
-    }
+    // Filter out already-analyzed claims (dedup by normalized text)
+    const newClaims = allClaims.filter(c => {
+      const key = (c.normalized_claim || c.original_text || '').trim();
+      return key && !analyzedClaimKeys.has(key);
+    });
 
-    if (!extraction.claims || extraction.claims.length === 0) {
-      resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '未检测到可验证的事实性论点' }));
+    if (newClaims.length === 0) {
+      // No new claims to analyze
+      if (!isVoiceMode) {
+        if (extraction.main_argument) {
+          resultsEl.appendChild(el('div', { className: 'main-argument', textContent: extraction.main_argument }));
+        }
+        resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '未检测到可验证的事实性论点' }));
+      }
       return;
     }
 
-    // Show skeleton cards for each claim
+    // Mark new claims as analyzed
+    newClaims.forEach(c => {
+      const key = (c.normalized_claim || c.original_text || '').trim();
+      analyzedClaimKeys.add(key);
+    });
+
+    // Show main argument (in voice mode, show as a divider for new analysis round)
+    if (extraction.main_argument) {
+      resultsEl.insertBefore(
+        el('div', { className: 'main-argument', textContent: extraction.main_argument }),
+        resultsEl.firstChild
+      );
+    }
+
+    // Show skeleton cards for new claims (prepend, newest at top)
     const cardEls = [];
-    extraction.claims.forEach((c, i) => {
+    newClaims.forEach((c, i) => {
       const card = renderSkeletonCard(c, i);
-      resultsEl.appendChild(card);
+      // Insert after main-argument if exists, otherwise at top
+      const insertRef = resultsEl.querySelector('.main-argument');
+      if (insertRef && insertRef.nextSibling) {
+        resultsEl.insertBefore(card, insertRef.nextSibling);
+      } else if (insertRef) {
+        resultsEl.appendChild(card);
+      } else {
+        resultsEl.insertBefore(card, resultsEl.firstChild);
+      }
       cardEls.push({ el: card, claim: c, index: i });
     });
 
-    // Step 2: Search + Verdict for each claim (concurrent)
+    // Remove empty state placeholder if present
+    const emptyEl = resultsEl.querySelector('.results-empty');
+    if (emptyEl) emptyEl.remove();
+    const noClaimsEl = resultsEl.querySelector('.no-claims');
+    if (noClaimsEl) noClaimsEl.remove();
+
+    // Step 2: Search + Verdict for each new claim (concurrent)
     setPipelineStep('stepSearch');
 
     const verdictPromises = cardEls.map(async ({ el: cardEl, claim, index }) => {
@@ -793,13 +860,10 @@ async function doAnalyzeProgressive(text) {
         });
         if (!vResp.ok) return;
         const verdict = await vResp.json();
-        // Replace skeleton with real card
         const realCard = renderVerdictCard(verdict, index);
         cardEl.replaceWith(realCard);
         return verdict;
-      } catch {
-        // Leave skeleton in place on error
-      }
+      } catch {}
     });
 
     setPipelineStep('stepVerdict');
@@ -807,11 +871,15 @@ async function doAnalyzeProgressive(text) {
 
     // Save to Supabase
     const processedClaims = verdicts.filter(Boolean);
-    saveToSupabase(text, extraction.main_argument || '', processedClaims);
-    loadRecent();
+    if (processedClaims.length > 0) {
+      saveToSupabase(text, extraction.main_argument || '', processedClaims);
+      loadRecent();
+    }
 
   } catch {
-    resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '网络错误，请检查连接后重试' }));
+    if (!isVoiceMode) {
+      resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '网络错误，请检查连接后重试' }));
+    }
   } finally {
     btnVerify.classList.remove('loading');
     btnVerify.disabled = false;
