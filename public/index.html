@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Argue Agent — 实时辩论事实核查</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root {
+  --bg: #050507;
+  --surface: #0a0a11;
+  --card: #0e0e18;
+  --elevated: #151524;
+  --border: #1a1a30;
+  --border-active: #2a2a4a;
+
+  --text: #d6d4ce;
+  --text-2: #7a788e;
+  --text-3: #3e3c52;
+
+  --violet: #8b6cef;
+  --violet-soft: rgba(139,108,239,0.10);
+  --violet-glow: rgba(139,108,239,0.25);
+
+  --emerald: #3dd68c;
+  --emerald-bg: rgba(61,214,140,0.08);
+  --amber: #eab308;
+  --amber-bg: rgba(234,179,8,0.08);
+  --rose: #ef4444;
+  --rose-bg: rgba(239,68,68,0.08);
+  --slate: #64748b;
+  --slate-bg: rgba(100,116,139,0.08);
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── Noise Overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.018;
+  background: repeating-conic-gradient(#fff 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
+  z-index: 9999;
+}
+
+/* ── Ambient Glow ── */
+.ambient {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.07;
+  pointer-events: none;
+  z-index: 0;
+}
+.ambient-1 { top: -200px; left: -100px; background: var(--violet); }
+.ambient-2 { bottom: -300px; right: -200px; background: var(--emerald); }
+
+/* ── Layout ── */
+.container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Header ── */
+header {
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Bodoni Moda', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.logo span { color: var(--violet); }
+.gh-link {
+  color: var(--text-3);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  font-family: 'Space Mono', monospace;
+}
+.gh-link:hover { color: var(--violet); }
+
+/* ── Hero ── */
+.hero {
+  padding: 64px 0 48px;
+  text-align: center;
+}
+.hero h1 {
+  font-family: 'Bodoni Moda', serif;
+  font-size: clamp(2.4rem, 6vw, 3.8rem);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--text), var(--violet));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+}
+.hero p {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 300;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Input Section ── */
+.input-section { padding-bottom: 40px; }
+.input-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 20px;
+  transition: border-color 0.3s;
+}
+.input-box:focus-within {
+  border-color: var(--violet);
+  box-shadow: 0 0 0 1px var(--violet-glow);
+}
+.input-box textarea {
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: none;
+  min-height: 80px;
+}
+.input-box textarea::placeholder { color: var(--text-3); }
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  gap: 12px;
+}
+.examples { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.example-chip {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+}
+.example-chip:hover { border-color: var(--violet); color: var(--text); }
+.btn-verify {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 28px;
+  background: var(--violet);
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-verify:hover { filter: brightness(1.15); }
+.btn-verify:active { transform: scale(0.97); }
+.btn-verify:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-verify .spinner {
+  display: none;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.btn-verify.loading .label { display: none; }
+.btn-verify.loading .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Results Section ── */
+.results-section { padding-bottom: 40px; }
+.section-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.results-empty {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.main-argument {
+  font-family: 'Bodoni Moda', serif;
+  font-size: 18px;
+  font-style: italic;
+  color: var(--text-2);
+  margin-bottom: 20px;
+  padding-left: 16px;
+  border-left: 2px solid var(--violet);
+}
+
+/* ── Verdict Card ── */
+.verdict-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 24px;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--slate);
+  animation: cardIn 0.4s ease-out both;
+  transition: border-color 0.3s;
+}
+.verdict-card:hover { border-color: var(--border-active); }
+.verdict-card.verified, .verdict-card.mostly_true { border-left-color: var(--emerald); }
+.verdict-card.questionable { border-left-color: var(--amber); }
+.verdict-card.mostly_false, .verdict-card.false { border-left-color: var(--rose); }
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.verdict-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.verdict-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 2px;
+}
+.verdict-badge.verified, .verdict-badge.mostly_true {
+  background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(61,214,140,0.2);
+}
+.verdict-badge.questionable {
+  background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(234,179,8,0.2);
+}
+.verdict-badge.mostly_false, .verdict-badge.false {
+  background: var(--rose-bg); color: var(--rose); border: 1px solid rgba(239,68,68,0.2);
+}
+.verdict-badge.unverifiable {
+  background: var(--slate-bg); color: var(--slate); border: 1px solid rgba(100,116,139,0.2);
+}
+.verdict-conf { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-3); }
+.verdict-claim { font-size: 15px; font-weight: 500; margin-bottom: 10px; line-height: 1.5; }
+.verdict-summary { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 12px; }
+.verdict-rebuttal {
+  font-size: 13px; padding: 14px 16px;
+  background: var(--elevated); border: 1px solid var(--border);
+  border-radius: 2px; margin-bottom: 12px; line-height: 1.6;
+}
+.verdict-rebuttal-label {
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--violet); display: block; margin-bottom: 6px;
+}
+.evidence-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.evidence-item { font-size: 12px; color: var(--text-2); display: flex; align-items: baseline; gap: 6px; }
+.evidence-item a { color: var(--text-2); text-decoration: none; transition: color 0.2s; }
+.evidence-item a:hover { color: var(--violet); }
+
+.no-claims {
+  padding: 20px 24px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 2px;
+  color: var(--text-2); font-size: 14px; text-align: center;
+  animation: cardIn 0.4s ease-out both;
+}
+
+/* ── Loading ── */
+.scan-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--violet), transparent);
+  animation: scan 1.2s ease-in-out infinite;
+  margin-bottom: 20px; border-radius: 1px; display: none;
+}
+.scan-line.active { display: block; }
+@keyframes scan {
+  0% { opacity: 0.3; transform: scaleX(0.3); }
+  50% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0.3; transform: scaleX(0.3); }
+}
+.loading-text {
+  text-align: center; font-family: 'Space Mono', monospace;
+  font-size: 12px; color: var(--text-3); letter-spacing: 0.05em;
+  display: none; margin-bottom: 20px;
+}
+.loading-text.active { display: block; }
+
+/* ── Recent Section ── */
+.recent-section { padding-bottom: 60px; }
+.recent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.recent-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 2px; padding: 16px; cursor: pointer; transition: all 0.2s;
+}
+.recent-card:hover { border-color: var(--border-active); background: var(--elevated); }
+.recent-text {
+  font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.recent-meta {
+  font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-3);
+  display: flex; align-items: center; gap: 8px;
+}
+.recent-badges { display: flex; gap: 4px; }
+.recent-badge { width: 6px; height: 6px; border-radius: 1px; }
+
+/* ── Footer ── */
+footer { border-top: 1px solid var(--border); padding: 24px 0; text-align: center; }
+footer p { font-size: 12px; color: var(--text-3); font-family: 'Space Mono', monospace; }
+footer a { color: var(--text-2); text-decoration: none; }
+footer a:hover { color: var(--violet); }
+
+/* ── Animations ── */
+.fade-in { opacity: 0; transform: translateY(12px); animation: fadeUp 0.5s ease-out forwards; }
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .hero { padding: 40px 0 32px; }
+  .hero h1 { font-size: 2rem; }
+  .input-actions { flex-direction: column; align-items: stretch; }
+  .examples { justify-content: center; }
+  .btn-verify { width: 100%; text-align: center; }
+  .recent-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="ambient ambient-1"></div>
+<div class="ambient ambient-2"></div>
+
+<div class="container">
+  <header class="fade-in">
+    <div class="logo">Argue <span>Agent</span></div>
+    <a class="gh-link" href="https://github.com/ava-agent/argue-agent" target="_blank" rel="noopener">GitHub</a>
+  </header>
+
+  <section class="hero">
+    <h1 class="fade-in delay-1">The Arbiter</h1>
+    <p class="fade-in delay-2">输入对方的论点，AI 即刻提取事实性声明，搜索证据，给出判定与反驳建议</p>
+  </section>
+
+  <section class="input-section fade-in delay-3">
+    <div class="input-box">
+      <textarea id="input" rows="3" placeholder="输入对方说的话，例如：中国的GDP在2024年超过了美国..."></textarea>
+      <div class="input-actions">
+        <div class="examples">
+          <span class="example-chip" data-text="特斯拉2023年全球销量超过了500万辆">特斯拉销量</span>
+          <span class="example-chip" data-text="研究表明每天必须喝8杯水才能保持健康">8杯水理论</span>
+          <span class="example-chip" data-text="世界上最深的湖泊是贝加尔湖，最深处超过1600米">贝加尔湖</span>
+        </div>
+        <button class="btn-verify" id="btnVerify">
+          <span class="label">VERIFY</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="results-section">
+    <div class="section-title">Analysis Results</div>
+    <div class="scan-line" id="scanLine"></div>
+    <div class="loading-text" id="loadingText">extracting claims · searching evidence · synthesizing verdict</div>
+    <div id="results">
+      <div class="results-empty">输入文本后点击 VERIFY 开始验证</div>
+    </div>
+  </section>
+
+  <section class="recent-section">
+    <div class="section-title">Recent Analyses</div>
+    <div class="recent-grid" id="recentGrid"></div>
+  </section>
+
+  <footer>
+    <p>Powered by <a href="https://open.bigmodel.cn/" target="_blank" rel="noopener">GLM-4</a> · <a href="https://duckduckgo.com/" target="_blank" rel="noopener">DuckDuckGo</a> · Built with <a href="https://github.com/ava-agent/argue-agent" target="_blank" rel="noopener">Argue Agent</a></p>
+  </footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://lvazmokpqrywaysgxspg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2YXptb2twcXJ5d2F5c2d4c3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyOTUzNDYsImV4cCI6MjA4NDg3MTM0Nn0.MyWZG8T0kQn0ZYuwN9iN3Vz-6C_cR6YrceZmmOqQcT8';
+
+const VERDICT_LABELS = {
+  verified: '已验证', mostly_true: '基本正确', questionable: '存疑',
+  mostly_false: '大部分不准确', false: '错误', unverifiable: '无法验证'
+};
+const VERDICT_CSS_COLORS = {
+  verified: '--emerald', mostly_true: '--emerald',
+  questionable: '--amber', mostly_false: '--rose',
+  false: '--rose', unverifiable: '--slate'
+};
+
+const $ = id => document.getElementById(id);
+const inputEl = $('input');
+const btnVerify = $('btnVerify');
+const resultsEl = $('results');
+const scanLine = $('scanLine');
+const loadingText = $('loadingText');
+const recentGrid = $('recentGrid');
+
+// ── Helpers ──
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'className') node.className = v;
+      else if (k === 'textContent') node.textContent = v;
+      else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
+      else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
+      else node.setAttribute(k, v);
+    }
+  }
+  if (children) {
+    for (const child of Array.isArray(children) ? children : [children]) {
+      if (typeof child === 'string') node.appendChild(document.createTextNode(child));
+      else if (child) node.appendChild(child);
+    }
+  }
+  return node;
+}
+
+function timeAgo(ts) {
+  const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return m + ' 分钟前';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' 小时前';
+  return Math.floor(h / 24) + ' 天前';
+}
+
+// ── Example chips ──
+document.querySelectorAll('.example-chip').forEach(chip => {
+  chip.addEventListener('click', () => { inputEl.value = chip.dataset.text; inputEl.focus(); });
+});
+
+// ── Keyboard ──
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAnalyze(); }
+});
+btnVerify.addEventListener('click', doAnalyze);
+
+// ── Analyze ──
+async function doAnalyze() {
+  const text = inputEl.value.trim();
+  if (!text || btnVerify.disabled) return;
+
+  btnVerify.classList.add('loading');
+  btnVerify.disabled = true;
+  scanLine.classList.add('active');
+  loadingText.classList.add('active');
+  resultsEl.textContent = '';
+
+  try {
+    const resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: '请求失败' }));
+      resultsEl.appendChild(el('div', { className: 'no-claims', textContent: err.error || '请求失败' }));
+      return;
+    }
+
+    const data = await resp.json();
+    renderResults(data);
+    loadRecent();
+  } catch {
+    resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '网络错误，请检查连接后重试' }));
+  } finally {
+    btnVerify.classList.remove('loading');
+    btnVerify.disabled = false;
+    scanLine.classList.remove('active');
+    loadingText.classList.remove('active');
+  }
+}
+
+// ── Render Results (safe DOM construction) ──
+function renderResults(data) {
+  resultsEl.textContent = '';
+
+  if (data.main_argument) {
+    resultsEl.appendChild(el('div', { className: 'main-argument', textContent: data.main_argument }));
+  }
+
+  if (!data.claims || data.claims.length === 0) {
+    resultsEl.appendChild(el('div', { className: 'no-claims', textContent: '未检测到可验证的事实性论点' }));
+    return;
+  }
+
+  data.claims.forEach((c, i) => {
+    const v = c.verdict || 'unverifiable';
+    const conf = Math.round((c.confidence || 0) * 100);
+
+    const card = el('div', {
+      className: 'verdict-card ' + v,
+      style: { animationDelay: (i * 0.12) + 's' }
+    });
+
+    // Header: badge + confidence
+    const header = el('div', { className: 'verdict-header' }, [
+      el('span', { className: 'verdict-badge ' + v, textContent: (VERDICT_LABELS[v] || v) }),
+      el('span', { className: 'verdict-conf', textContent: conf + '%' }),
+    ]);
+    card.appendChild(header);
+
+    // Claim text
+    card.appendChild(el('div', { className: 'verdict-claim', textContent: c.normalized_claim || '' }));
+
+    // Summary
+    card.appendChild(el('div', { className: 'verdict-summary', textContent: c.summary || '' }));
+
+    // Rebuttal
+    if (c.suggested_rebuttal) {
+      const rebuttal = el('div', { className: 'verdict-rebuttal' }, [
+        el('span', { className: 'verdict-rebuttal-label', textContent: 'Rebuttal' }),
+        document.createTextNode(c.suggested_rebuttal),
+      ]);
+      card.appendChild(rebuttal);
+    }
+
+    // Evidence
+    if (c.evidence && c.evidence.length > 0) {
+      const list = el('div', { className: 'evidence-list' });
+      c.evidence.slice(0, 4).forEach(e => {
+        const colorVar = e.supports_claim ? '--emerald' : '--rose';
+        const icon = e.supports_claim ? '\u25CF' : '\u25CB';
+        const item = el('div', { className: 'evidence-item' }, [
+          el('span', { style: { color: 'var(' + colorVar + ')' }, textContent: icon }),
+          el('a', { href: e.source_url, target: '_blank', rel: 'noopener', textContent: e.source_title }),
+        ]);
+        list.appendChild(item);
+      });
+      card.appendChild(list);
+    }
+
+    resultsEl.appendChild(card);
+  });
+}
+
+// ── Load Recent from Supabase ──
+async function loadRecent() {
+  try {
+    const resp = await fetch(
+      SUPABASE_URL + '/rest/v1/argue_analyses?select=id,input_text,main_argument,claims,created_at&order=created_at.desc&limit=6',
+      { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+    );
+    if (!resp.ok) throw new Error('fetch failed');
+    const rows = await resp.json();
+
+    recentGrid.textContent = '';
+
+    if (!rows.length) {
+      recentGrid.appendChild(
+        el('div', { className: 'results-empty', textContent: '暂无记录，成为第一个体验者', style: { gridColumn: '1 / -1' } })
+      );
+      return;
+    }
+
+    rows.forEach(r => {
+      const claims = r.claims || [];
+      const text = r.input_text.length > 60 ? r.input_text.slice(0, 60) + '…' : r.input_text;
+
+      const badges = el('div', { className: 'recent-badges' });
+      claims.slice(0, 4).forEach(c => {
+        const cssVar = VERDICT_CSS_COLORS[c.verdict] || '--slate';
+        badges.appendChild(el('div', { className: 'recent-badge', style: { background: 'var(' + cssVar + ')' } }));
+      });
+
+      const card = el('div', { className: 'recent-card', onClick: () => {
+        inputEl.value = r.input_text;
+        doAnalyze();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }}, [
+        el('div', { className: 'recent-text', textContent: text }),
+        el('div', { className: 'recent-meta' }, [
+          badges,
+          el('span', { textContent: claims.length + ' claims · ' + timeAgo(r.created_at) }),
+        ]),
+      ]);
+
+      recentGrid.appendChild(card);
+    });
+  } catch {
+    recentGrid.textContent = '';
+    recentGrid.appendChild(
+      el('div', { className: 'results-empty', textContent: '无法加载历史记录', style: { gridColumn: '1 / -1' } })
+    );
+  }
+}
+
+// ── Init ──
+loadRecent();
+</script>
+</body>
+</html>

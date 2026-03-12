@@ -1,5 +1,7 @@
 # Argue Agent - 实时辩论助手
 
+> **在线体验**: https://argue-agent.vercel.app
+
 实时监听对话并自动验证对方论点，帮助你在实时沟通中掌握主动权。
 
 ## 功能
@@ -82,9 +84,14 @@ python -m argue_agent
 ```
 argue-agent/
 ├── pyproject.toml           # 项目配置
+├── vercel.json              # Vercel 部署配置
+├── requirements.txt         # Vercel Python 依赖
 ├── Dockerfile               # Docker 部署
-├── .env                     # API Keys（不提交到 git）
 ├── .env.example             # 配置模板
+├── api/
+│   └── index.py             # Vercel Serverless API
+├── public/
+│   └── index.html           # 体验站前端（The Arbiter）
 ├── docs/images/             # 文档图片
 ├── src/argue_agent/
 │   ├── __main__.py          # 启动入口
@@ -119,13 +126,30 @@ python scripts/demo_text.py
 
 输入对方的发言，系统会自动提取论点并搜索验证。
 
-## Docker 部署
+## 部署
+
+### Vercel + Supabase（在线体验站）
+
+![Deployment Architecture](docs/images/deployment.png)
+
+体验站采用 Vercel 静态前端 + Serverless Python API + Supabase PostgreSQL 的架构：
 
 ```bash
-# 构建镜像
-docker build -t argue-agent .
+# 安装 Vercel CLI
+npm i -g vercel
 
-# 运行（传入 API Key）
+# 链接项目并部署
+vercel link
+vercel env add ARGUE_GLM_API_KEY production
+vercel env add SUPABASE_URL production
+vercel env add SUPABASE_ANON_KEY production
+vercel deploy --prod
+```
+
+### Docker（本地/服务器）
+
+```bash
+docker build -t argue-agent .
 docker run -d -p 8000:8000 \
   -e ARGUE_GLM_API_KEY=your-key \
   -e ARGUE_DEEPGRAM_API_KEY=your-key \

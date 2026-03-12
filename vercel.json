@@ -1,0 +1,12 @@
+{
+  "framework": null,
+  "functions": {
+    "api/index.py": {
+      "runtime": "@vercel/python@4.5.1",
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/analyze", "destination": "/api/index.py" }
+  ]
+}
