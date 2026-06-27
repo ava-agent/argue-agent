@@ -4,12 +4,12 @@
 
 - Repository: `ava-agent/argue-agent`
 - Public URL: `https://argue.rxcloud.group`
-- Stack: FastAPI, Pydantic, GLM/OpenAI-compatible SDK, DuckDuckGo/Tavily search, optional Deepgram STT
+- Stack: FastAPI, Pydantic, Volcengine Ark/OpenAI-compatible SDK, DuckDuckGo/Tavily search, optional Deepgram STT
 - Product: realtime debate/fact-checking assistant.
 
 ## Before Editing
 
-- Keep GLM, Tavily, and Deepgram keys in local `.env` or platform secrets.
+- Keep Ark, Tavily, and Deepgram keys in local `.env` or platform secrets.
 - Be careful with search-provider behavior; local DuckDuckGo and Vercel Tavily paths differ.
 - Do not commit `.venv/`, `.playwright-mcp/`, generated recordings, caches, or filled `.env`.
 
