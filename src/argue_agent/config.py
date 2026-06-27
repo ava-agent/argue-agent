@@ -1,11 +1,18 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # GLM API
-    glm_api_key: str = ""
-    glm_base_url: str = "https://open.bigmodel.cn/api/paas/v4/"
-    glm_model: str = "glm-4-flash"
+    # Ark CodingPlan API
+    ark_api_key: str = Field(default="", validation_alias="ARK_API_KEY")
+    ark_base_url: str = Field(
+        default="https://ark.cn-beijing.volces.com/api/coding/v3",
+        validation_alias="ARK_BASE_URL",
+    )
+    ark_chat_model: str = Field(
+        default="doubao-seed-2-0-code-preview-260215",
+        validation_alias="ARK_CHAT_MODEL",
+    )
 
     # Deepgram API
     deepgram_api_key: str = ""
@@ -27,7 +34,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    model_config = {"env_file": ".env", "env_prefix": "ARGUE_"}
+    model_config = {"env_file": ".env", "env_prefix": "ARGUE_", "extra": "ignore"}
 
 
 settings = Settings()

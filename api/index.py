@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from http.server import BaseHTTPRequestHandler
 
 import httpx
@@ -19,11 +20,12 @@ logger = logging.getLogger(__name__)
 
 # ── Config ──────────────────────────────────────────────
 
-GLM_API_KEY = os.environ.get("ARGUE_GLM_API_KEY", "")
-GLM_BASE_URL = os.environ.get(
-    "ARGUE_GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"
-)
-GLM_MODEL = os.environ.get("ARGUE_GLM_MODEL", "glm-4-flash")
+DEFAULT_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
+DEFAULT_ARK_MODEL = "doubao-seed-2-0-code-preview-260215"
+
+ARK_API_KEY = os.environ.get("ARK_API_KEY", "")
+ARK_BASE_URL = os.environ.get("ARK_BASE_URL", DEFAULT_ARK_BASE_URL)
+ARK_MODEL = os.environ.get("ARK_CHAT_MODEL", DEFAULT_ARK_MODEL)
 TAVILY_API_KEY = os.environ.get("ARGUE_TAVILY_API_KEY", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
@@ -45,7 +47,7 @@ EXTRACTION_PROMPT = """你是一个辩论分析专家。你的任务是从对方
 
 对每个论点，生成1-3个适合搜索引擎验证的中文查询词。
 
-以JSON格式返回，结构如下：
+只返回 JSON 对象，不要使用 Markdown 代码块或额外解释。结构如下：
 {
   "claims": [
     {
@@ -71,7 +73,7 @@ VERDICT_PROMPT = """你是一个事实核查专家。根据搜索结果对论点
 - false: 明确错误
 - unverifiable: 无法通过现有搜索结果验证
 
-以JSON格式返回：
+只返回 JSON 对象，不要使用 Markdown 代码块或额外解释。结构如下：
 {
   "verdict": "判定等级",
   "confidence": 0.8,
@@ -92,25 +94,37 @@ VERDICT_PROMPT = """你是一个事实核查专家。根据搜索结果对论点
 
 def _make_client() -> AsyncOpenAI:
     return AsyncOpenAI(
-        api_key=GLM_API_KEY,
-        base_url=GLM_BASE_URL,
+        api_key=ARK_API_KEY,
+        base_url=ARK_BASE_URL,
         http_client=httpx.AsyncClient(proxy=None),
     )
+
+
+def parse_model_json(content: str) -> dict:
+    normalized = content.strip()
+    normalized = re.sub(r"^```(?:json)?\s*", "", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\s*```$", "", normalized)
+    try:
+        return json.loads(normalized)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", normalized)
+        if not match:
+            raise ValueError("Model response did not include a JSON object")
+        return json.loads(match.group(0))
 
 
 async def extract_claims(text: str) -> dict:
     client = _make_client()
     try:
         resp = await client.chat.completions.create(
-            model=GLM_MODEL,
+            model=ARK_MODEL,
             messages=[
                 {"role": "system", "content": EXTRACTION_PROMPT},
                 {"role": "user", "content": f"请分析以下发言：\n{text}"},
             ],
-            response_format={"type": "json_object"},
             temperature=0.1,
         )
-        return json.loads(resp.choices[0].message.content or "{}")
+        return parse_model_json(resp.choices[0].message.content or "{}")
     except Exception:
         logger.exception("extract_claims failed")
         return {"claims": [], "main_argument": ""}
@@ -180,15 +194,14 @@ async def synthesize_verdict(claim: dict, evidence: list[dict]) -> dict:
     )
     try:
         resp = await client.chat.completions.create(
-            model=GLM_MODEL,
+            model=ARK_MODEL,
             messages=[
                 {"role": "system", "content": VERDICT_PROMPT},
                 {"role": "user", "content": f"待验证论点: {claim['normalized_claim']}\n原始发言: {claim.get('original_text','')}\n\n搜索结果:\n{ev_text}"},
             ],
-            response_format={"type": "json_object"},
             temperature=0.1,
         )
-        data = json.loads(resp.choices[0].message.content or "{}")
+        data = parse_model_json(resp.choices[0].message.content or "{}")
         analyzed = list(evidence)
         for ea in data.get("evidence_analysis", []):
             idx = ea.get("source_index", -1)
@@ -240,8 +253,8 @@ async def process_claim(claim: dict) -> dict:
 
 async def run_extract(text: str) -> dict:
     """Step 1: Extract claims only (fast ~1-2s)."""
-    if not GLM_API_KEY:
-        return {"error": "GLM API Key 未配置"}
+    if not ARK_API_KEY:
+        return {"error": "Ark API Key 未配置"}
     extraction = await extract_claims(text)
     claims = extraction.get("claims", [])
     claims = [c for c in claims if c.get("confidence", 0) >= 0.5][:3]
@@ -250,15 +263,15 @@ async def run_extract(text: str) -> dict:
 
 async def run_verdict(claim_data: dict) -> dict:
     """Step 2: Search + synthesize verdict for one claim (~2-4s)."""
-    if not GLM_API_KEY:
-        return {"error": "GLM API Key 未配置"}
+    if not ARK_API_KEY:
+        return {"error": "Ark API Key 未配置"}
     return await process_claim(claim_data)
 
 
 async def run_pipeline(text: str) -> dict:
     """Full pipeline (backward compatible)."""
-    if not GLM_API_KEY:
-        return {"error": "GLM API Key 未配置"}
+    if not ARK_API_KEY:
+        return {"error": "Ark API Key 未配置"}
 
     extraction = await extract_claims(text)
     claims = extraction.get("claims", [])

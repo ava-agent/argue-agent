@@ -39,10 +39,10 @@ def main() -> None:
     )
 
     # 检查配置
-    if not settings.glm_api_key:
-        print("⚠️  未配置 GLM API Key！")
-        print("   请在 .env 文件中设置 ARGUE_GLM_API_KEY")
-        print("   或设置环境变量: export ARGUE_GLM_API_KEY=your-key")
+    if not settings.ark_api_key:
+        print("⚠️  未配置 Ark API Key！")
+        print("   请在 .env 文件中设置 ARK_API_KEY")
+        print("   或设置环境变量: export ARK_API_KEY=your-key")
         return
 
     if not settings.deepgram_api_key:

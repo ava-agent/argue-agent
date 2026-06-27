@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
-
-import httpx
-from openai import AsyncOpenAI
 
 from argue_agent.analysis.models import Claim, Evidence, FactVerdict, VerdictLevel
 from argue_agent.config import settings
+from argue_agent.llm import create_ark_client, parse_model_json
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +18,7 @@ VERDICT_SYSTEM_PROMPT = """你是一个事实核查专家。根据搜索结果�
 - false: 明确错误
 - unverifiable: 无法通过现有搜索结果验证
 
-以JSON格式返回：
+只返回 JSON 对象，不要使用 Markdown 代码块或额外解释。结构如下：
 {
   "verdict": "判定等级",
   "confidence": 0.8,
@@ -39,13 +36,7 @@ VERDICT_SYSTEM_PROMPT = """你是一个事实核查专家。根据搜索结果�
 
 class VerdictSynthesizer:
     def __init__(self) -> None:
-        # 创建不使用代理的 httpx 客户端
-        http_client = httpx.AsyncClient(proxy=None)
-        self.client = AsyncOpenAI(
-            api_key=settings.glm_api_key,
-            base_url=settings.glm_base_url,
-            http_client=http_client,
-        )
+        self.client = create_ark_client()
 
     async def synthesize(
         self, claim: Claim, evidence: list[Evidence]
@@ -66,7 +57,7 @@ class VerdictSynthesizer:
 
         try:
             response = await self.client.chat.completions.create(
-                model=settings.glm_model,
+                model=settings.ark_chat_model,
                 messages=[
                     {"role": "system", "content": VERDICT_SYSTEM_PROMPT},
                     {
@@ -78,12 +69,11 @@ class VerdictSynthesizer:
                         ),
                     },
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.1,
             )
 
             content = response.choices[0].message.content or "{}"
-            data = json.loads(content)
+            data = parse_model_json(content)
 
             # 根据 LLM 分析结果更新 evidence 的 supports_claim
             analyzed_evidence = list(evidence)

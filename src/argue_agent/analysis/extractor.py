@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
-
-import httpx
-from openai import AsyncOpenAI
 
 from argue_agent.analysis.models import ArgumentExtraction, Utterance
 from argue_agent.config import settings
+from argue_agent.llm import create_ark_client, parse_model_json
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +23,7 @@ EXTRACTION_SYSTEM_PROMPT = """你是一个辩论分析专家。你的任务是�
 
 对每个论点，生成1-3个适合搜索引擎验证的中文查询词。
 
-以JSON格式返回，结构如下：
+只返回 JSON 对象，不要使用 Markdown 代码块或额外解释。结构如下：
 {
   "claims": [
     {
@@ -45,13 +42,7 @@ EXTRACTION_SYSTEM_PROMPT = """你是一个辩论分析专家。你的任务是�
 
 class ArgumentExtractor:
     def __init__(self) -> None:
-        # 创建不使用代理的 httpx 客户端
-        http_client = httpx.AsyncClient(proxy=None)
-        self.client = AsyncOpenAI(
-            api_key=settings.glm_api_key,
-            base_url=settings.glm_base_url,
-            http_client=http_client,
-        )
+        self.client = create_ark_client()
         self.context_window: list[Utterance] = []
         self.max_context = settings.extraction_context_window
 
@@ -66,7 +57,7 @@ class ArgumentExtractor:
 
         try:
             response = await self.client.chat.completions.create(
-                model=settings.glm_model,
+                model=settings.ark_chat_model,
                 messages=[
                     {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
                     {
@@ -77,12 +68,11 @@ class ArgumentExtractor:
                         ),
                     },
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.1,
             )
 
             content = response.choices[0].message.content or "{}"
-            data = json.loads(content)
+            data = parse_model_json(content)
             return ArgumentExtraction.model_validate(data)
 
         except Exception:
