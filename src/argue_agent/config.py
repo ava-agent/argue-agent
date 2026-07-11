@@ -3,10 +3,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Ark CodingPlan API
+    # Ark Agent Plan API
     ark_api_key: str = Field(default="", validation_alias="ARK_API_KEY")
     ark_base_url: str = Field(
-        default="https://ark.cn-beijing.volces.com/api/coding/v3",
+        default="https://ark.cn-beijing.volces.com/api/plan/v3",
         validation_alias="ARK_BASE_URL",
     )
     ark_chat_model: str = Field(

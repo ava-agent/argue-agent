@@ -28,9 +28,9 @@
 
 1. **语音转文字** - Deepgram Nova-3 实时转录（可选）
 2. **断句累积** - 将流式转录片段累积为完整语句
-3. **论点提取** - Ark CodingPlan LLM 提取可验证的事实性论点
+3. **论点提取** - Ark Agent Plan LLM 提取可验证的事实性论点
 4. **证据搜索** - DuckDuckGo 并发搜索验证
-5. **判定综合** - Ark CodingPlan LLM 综合证据给出 6 级判定
+5. **判定综合** - Ark Agent Plan LLM 综合证据给出 6 级判定
 
 ## 技术栈与数据模型
 
@@ -39,7 +39,7 @@
 | 层 | 技术 | 说明 |
 |---|------|------|
 | 后端框架 | FastAPI + Uvicorn | 异步 Web 服务，支持 WebSocket |
-| AI/LLM | OpenAI SDK → Ark CodingPlan | 火山方舟 OpenAI 兼容接口 |
+| AI/LLM | OpenAI SDK → Ark Agent Plan | 火山方舟 OpenAI 兼容接口 |
 | 语音识别 | Deepgram Nova-3 | WebSocket 实时流式转录（可选） |
 | 搜索引擎 | DuckDuckGo Search | 免费事实验证搜索 |
 | 数据验证 | Pydantic v2 | 类型安全的数据模型 |
@@ -53,9 +53,9 @@
 
 系统核心是一个三阶段 AI Agent 管道，每个阶段由独立的 Agent 模块负责：
 
-1. **Claim Extractor Agent** — 接收用户输入文本，通过 Ark CodingPlan LLM 以严格 JSON prompt 输出，提取结构化的可验证论点（`Claim` 对象），包含原始文本、规范化表述、论点类型和搜索查询词
+1. **Claim Extractor Agent** — 接收用户输入文本，通过 Ark Agent Plan LLM 以严格 JSON prompt 输出，提取结构化的可验证论点（`Claim` 对象），包含原始文本、规范化表述、论点类型和搜索查询词
 2. **Evidence Searcher Agent** — 对每个论点的搜索查询词，通过 DuckDuckGo 并发检索外部证据，返回 `SearchEvidence` 列表
-3. **Verdict Synthesizer Agent** — 将论点与证据一并送入 Ark CodingPlan LLM，综合分析后输出 6 级判定（verified → false → unverifiable）及反驳建议
+3. **Verdict Synthesizer Agent** — 将论点与证据一并送入 Ark Agent Plan LLM，综合分析后输出 6 级判定（verified → false → unverifiable）及反驳建议
 
 ### LLM 交互模式 — 结构化输出链
 
@@ -126,7 +126,7 @@ python -m argue_agent
 
 | API | 用途 | 获取方式 | 免费额度 |
 |-----|------|----------|----------|
-| 火山方舟 Ark CodingPlan | 论点提取、判定 | [火山方舟](https://www.volcengine.com/product/ark) | 按已购 CodingPlan 套餐 |
+| 火山方舟 Ark Agent Plan | 论点提取、判定 | [火山方舟](https://www.volcengine.com/activity/agentplan) | 按已购 Agent Plan 套餐 |
 | Tavily | 证据搜索（Vercel 部署） | [Tavily](https://tavily.com/) | 1,000 次/月 |
 | Deepgram | 语音转文字 | [Deepgram 官网](https://console.deepgram.com/) | $200 额度 |
 
@@ -208,7 +208,7 @@ vercel deploy --prod
 docker build -t argue-agent .
 docker run -d -p 8000:8000 \
   -e ARK_API_KEY=your-key \
-  -e ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/coding/v3 \
+  -e ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3 \
   -e ARK_CHAT_MODEL=doubao-seed-2-0-code-preview-260215 \
   -e ARGUE_DEEPGRAM_API_KEY=your-key \
   argue-agent
@@ -232,7 +232,7 @@ LLM 配置使用共享 `ARK_*` 变量，项目专属配置继续使用 `ARGUE_` 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `ARK_API_KEY` | （必填） | 火山方舟 Ark API Key |
-| `ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/coding/v3` | Ark CodingPlan OpenAI 兼容入口 |
+| `ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/plan/v3` | Ark Agent Plan OpenAI 兼容入口 |
 | `ARK_CHAT_MODEL` | `doubao-seed-2-0-code-preview-260215` | Ark chat 模型名称 |
 | `ARGUE_TAVILY_API_KEY` | （Vercel 必填） | Tavily Search API Key |
 | `ARGUE_DEEPGRAM_API_KEY` | （可选） | Deepgram 语音识别 Key |
